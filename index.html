@@ -16,7 +16,7 @@ main { padding:16px; max-width:900px; margin:auto; }
 .topic h2 { margin:0 0 10px; font-size:18px; color:#f9fafb; }
 .topic p { font-size:14px; line-height:1.6; color:#d1d5db; }
 .sources { margin-top:12px; font-size:12px; }
-.sources a { color:#38bdf8; text-decoration:none; display:inline-block; margin-right:10px; }
+.sources a { color:#38bdf8; text-decoration:none; display:block; margin-bottom:2px; }
 </style>
 </head>
 <body>
@@ -52,6 +52,17 @@ function createCategories() {
     catEl.appendChild(btn);
   });
 }
+async function translate(text){
+  try{
+    const r = await fetch("https://libretranslate.de/translate",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({q:text, source:"auto", target:"de"})
+    });
+    const d = await r.json();
+    return d.translatedText||text;
+  }catch{return text;}
+}
 function normalizeTitle(title){
   return title.toLowerCase().replace(/[^a-z0-9 ]/gi,'').split(' ').slice(0,6).join(' ');
 }
@@ -84,15 +95,17 @@ async function loadNews(category="Alle"){
   }
   for(const key in topics){
     const topic = topics[key];
-    // Jetzt auch einzelne Quellen anzeigen, nicht nur 2+
-    const title = topic.titles[0];
-    const summary = mergeSummaries(topic.texts);
+    const title = await translate(topic.titles[0]);
+    const summary = await translate(mergeSummaries(topic.texts));
     const div=document.createElement("div");
     div.className="topic";
     div.innerHTML=`
       <h2>${title}</h2>
       <p>${summary}</p>
-      <div class="sources">Quellen: ${topic.links.map(l=>`<a href="${l}" target="_blank">Link</a>`).join('')}</div>
+      <div class="sources">
+        Quellen:
+        ${topic.links.map(l=>`<a href="${l}" target="_blank">${l}</a>`).join('')}
+      </div>
     `;
     newsEl.appendChild(div);
   }
@@ -103,18 +116,4 @@ setInterval(()=>loadNews(document.querySelector('.cat.active')?.textContent||'Al
 </script>
 </body>
 </html>
-```
 
----
-
-### ✅ Was sich geändert hat
-
-- **Auch einzelne Artikel werden jetzt angezeigt**, nicht nur Themen mit ≥2 Quellen  
-- Alles andere bleibt: Kategorien, Kurzfassung ≥100 Zeichen, Quellen, Auto-Update  
-- Läuft **direkt auf GitHub Pages** ohne CORS-Probleme
-
----
-
-Wenn du willst, kann ich als **nächsten Schritt** noch eine **echte GPT-KI-Zusammenfassung** einbauen, die **alle wichtigen Infos aus mehreren Quellen wirklich intelligent zusammenfasst**.  
-
-Willst du, dass ich das direkt einbaue?
