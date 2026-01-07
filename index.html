@@ -27,7 +27,7 @@ main { padding:16px; max-width:900px; margin:auto; }
 <main id="news"></main>
 <script>
 const feeds = {
-  "Progressiv/Links": [
+  "Alle": [
     "https://www.theguardian.com/world/rss",
     "https://www.huffpost.com/section/world-news/feed",
     "https://www.vox.com/rss/index.xml",
@@ -37,9 +37,7 @@ const feeds = {
     "https://www.commondreams.org/rss",
     "https://truthout.org/feed/",
     "https://www.monde-diplomatique.fr/feed",
-    "https://www.counterpunch.org/feed/"
-  ],
-  "Neutral/Zentristisch": [
+    "https://www.counterpunch.org/feed/",
     "https://www.reuters.com/rssFeed/world",
     "https://apnews.com/apf-topnews/rss",
     "https://feeds.bbci.co.uk/news/rss.xml",
@@ -50,6 +48,29 @@ const feeds = {
     "https://www.bloomberg.com/feed/podcast",
     "https://www.afp.com/en/rss",
     "https://www.csmonitor.com/feeds/topstories.xml"
+  ],
+  "Politik": [
+    "https://www.theguardian.com/politics/rss",
+    "https://www.huffpost.com/section/politics/feed",
+    "https://www.vox.com/policy-and-politics/rss/index.xml",
+    "https://www.thenation.com/politics/feed",
+    "https://www.democracynow.org/dn.xml"
+  ],
+  "Wirtschaft": [
+    "https://www.ft.com/?format=rss",
+    "https://www.bloomberg.com/feed/podcast",
+    "https://www.reuters.com/rssFeed/business",
+    "https://www.apnews.com/apf-business/rss"
+  ],
+  "Technologie": [
+    "https://www.theguardian.com/technology/rss",
+    "https://www.vox.com/technology/rss/index.xml",
+    "https://www.huffpost.com/section/technology/feed"
+  ],
+  "Klima": [
+    "https://www.theguardian.com/environment/rss",
+    "https://www.vox.com/energy-and-environment/rss/index.xml",
+    "https://www.commondreams.org/rss/environment"
   ]
 };
 const newsEl = document.getElementById("news");
@@ -77,7 +98,7 @@ function mergeSummaries(texts){
   if(result.length > 300) result = result.slice(0,300) + '…';
   return result;
 }
-async function loadNews(category="Progressiv/Links"){
+async function loadNews(category="Alle"){
   newsEl.innerHTML="";
   const topics={};
   for(const feed of feeds[category]){
@@ -111,12 +132,4 @@ async function loadNews(category="Progressiv/Links"){
         ${topic.links.map(l=>`<a href="${l}" target="_blank">${l}</a>`).join('')}
       </div>
     `;
-    newsEl.appendChild(div);
-  }
-}
-createCategories();
-loadNews();
-setInterval(()=>loadNews(document.querySelector('.cat.active')?.textContent||'Progressiv/Links'),5*60*1000);
-</script>
-</body>
-</html>
+    newsEl.appendChild
