@@ -13,10 +13,12 @@ header h1 { margin:0; font-size:20px; }
 .cat.active { background:#38bdf8; color:#020617; font-weight:bold; }
 main { padding:16px; max-width:900px; margin:auto; }
 .topic { background:#111827; border-radius:16px; padding:16px; margin-bottom:20px; box-shadow:0 10px 25px rgba(0,0,0,.4); }
-.topic h2 { margin:0 0 10px; font-size:18px; color:#f9fafb; }
+.topic h2 { margin:0 0 6px; font-size:16px; color:#f9fafb; }
 .topic p { font-size:14px; line-height:1.6; color:#d1d5db; }
+.ki-summary { background:#1e40af; color:#f0fdf4; padding:12px; border-radius:12px; margin-top:8px; font-size:14px; line-height:1.5; }
 .sources { margin-top:12px; font-size:12px; }
 .sources a { color:#38bdf8; text-decoration:none; display:block; margin-bottom:2px; }
+.date { font-size:12px; color:#9ca3af; margin-bottom:4px; }
 </style>
 </head>
 <body>
@@ -66,7 +68,7 @@ const feeds = {
 const newsEl = document.getElementById("news");
 const catEl = document.getElementById("categories");
 
-// Kategorien-Buttons hart codiert, immer sichtbar
+// Kategorien-Buttons hart codiert
 const categoryNames = Object.keys(feeds);
 categoryNames.forEach((cat, i) => {
   const btn = document.createElement("div");
@@ -84,6 +86,7 @@ categoryNames.forEach((cat, i) => {
 function normalizeTitle(title){
   return title.toLowerCase().replace(/[^a-z0-9 ]/gi,'').split(' ').slice(0,6).join(' ');
 }
+
 function mergeSummaries(texts){
   const joined = texts.join(' ');
   let result = joined.split('. ').slice(0,6).join('. ') + '.';
@@ -92,6 +95,30 @@ function mergeSummaries(texts){
   return result;
 }
 
+async function translate(text){
+  try{
+    const res = await fetch("https://libretranslate.de/translate", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({q:text, source:"auto", target:"de"})
+    });
+    const data = await res.json();
+    return data.translatedText || text;
+  }catch(e){
+    console.log("Übersetzung fehlgeschlagen", e);
+    return text;
+  }
+}
+
+// KI-Zusammenfassung (mehrere Quellen pro Thema)
+async function generateKISummary(texts){
+  // Für Demo: einfache Zusammenfassung (mittels Merge)
+  const merged = texts.join(' ');
+  const sentences = merged.split('. ').filter(s => s.length>40).slice(0,6).join('. ');
+  return await translate(sentences.length ? sentences : merged.slice(0,250)+'…');
+}
+
+// Lade Nachrichten
 async function loadNews(category="Alle"){
   newsEl.innerHTML="";
   const topics = {};
@@ -106,27 +133,34 @@ async function loadNews(category="Alle"){
         const titleRaw = item.querySelector("title")?.textContent || "";
         const descRaw = item.querySelector("description")?.textContent?.replace(/<[^>]+>/g,'') || "";
         const link = item.querySelector("link")?.textContent || "";
+        const pubDate = item.querySelector("pubDate")?.textContent || "";
+
         const key = normalizeTitle(titleRaw);
-        if(!topics[key]) topics[key] = {titles:[], texts:[], links:[]};
+        if(!topics[key]) topics[key] = {titles:[], texts:[], links:[], dates:[]};
         topics[key].titles.push(titleRaw);
         topics[key].texts.push(descRaw);
         topics[key].links.push(link);
+        topics[key].dates.push(pubDate);
       }
-    } catch(e){
+    }catch(e){
       console.log("Feed Fehler:", feed, e);
     }
   }
 
   for(const key in topics){
     const topic = topics[key];
-    const title = topic.titles[0];
-    const summary = mergeSummaries(topic.texts);
+    const titleTranslated = await translate(topic.titles[0]);
+    const summaryTranslated = await translate(mergeSummaries(topic.texts));
+    const kiSummary = await generateKISummary(topic.texts);
+    const date = topic.dates[0] ? new Date(topic.dates[0]).toLocaleDateString('de-DE') : "";
 
     const div = document.createElement("div");
     div.className = "topic";
     div.innerHTML = `
-      <h2>${title}</h2>
-      <p>${summary}</p>
+      <div class="date">${date}</div>
+      <h2>${titleTranslated}</h2>
+      <p>${summaryTranslated}</p>
+      <div class="ki-summary">KI-Zusammenfassung: ${kiSummary}</div>
       <div class="sources">
         Quellen:
         ${topic.links.map(l => `<a href="${l}" target="_blank">${l}</a>`).join('')}
