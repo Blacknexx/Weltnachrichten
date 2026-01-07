@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>Weltnachrichten – KI-Themenzusammenfassung</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial;
+      background: #0b1220;
+      color: #e5e7eb;
+    }
+    header {
+      position: sticky;
+      top: 0;
+      background: #0f172a;
+      padding: 16px;
+      text-align: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,.4);
+      z-index: 10;
+    }
+    header h1 { margin: 0; font-size: 20px; }
+    main { padding: 16px; max-width: 900px; margin: auto; }
+    .topic {
+      background: #111827;
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,.4);
+    }
+    .topic h2 { margin: 0 0 10px; font-size: 18px; color: #f9fafb; }
+    .topic p { font-size: 14px; line-height: 1.6; color: #d1d5db; }
+    .sources {
+      margin-top: 12px;
+      font-size: 12px;
+    }
+    .sources a {
+      color: #38bdf8;
+      text-decoration: none;
+      display: inline-block;
+      margin-right: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🌍 Weltnachrichten – Themen & KI-Zusammenfassung</h1>
+</header>
+
+<main id="news"></main>
+
+<script>
+  const feeds = [
+    "https://feeds.bbci.co.uk/news/world/rss.xml",
+    "https://www.tagesschau.de/ausland/index~rss2.xml",
+    "https://rss.cnn.com/rss/edition_world.rss"
+  ];
+
+  const newsEl = document.getElementById("news");
+
+  async function translate(text) {
+    try {
+      const r = await fetch("https://libretranslate.de/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ q: text, source: "auto", target: "de" })
+      });
+      const d = await r.json();
+      return d.translatedText || text;
+    } catch { return text; }
+  }
+
+  function normalizeTitle(title) {
+    return title.toLowerCase().replace(/[^a-zäöü0-9 ]/gi, '').split(' ').slice(0, 6).join(' ');
+  }
+
+  function mergeSummaries(texts) {
+    const joined = texts.join(' ');
+    const sentences = joined.split('. ').filter(s => s.length > 40);
+    let result = sentences.slice(0, 4).join('. ') + '.';
+    if (result.length < 100) result = joined.slice(0, 120) + '…';
+    return result;
+  }
+
+  async function loadNews() {
+    const topics = {};
+
+    for (const feed of feeds) {
+      const res = await fetch("https://api.allorigins.win/raw?url=" + encodeURIComponent(feed));
+      const xml = new DOMParser().parseFromString(await res.text(), "text/xml");
+      const items = Array.from(xml.querySelectorAll("item")).slice(0, 8);
+
+      for (const item of items) {
+        const titleRaw = item.querySelector("title")?.textContent || "";
+        const descRaw = item.querySelector("description")?.textContent?.replace(/<[^>]+>/g,'') || "";
+        const link = item.querySelector("link")?.textContent || "";
+
+        const key = normalizeTitle(titleRaw);
+        if (!topics[key]) topics[key] = { titles: [], texts: [], links: [] };
+
+        topics[key].titles.push(titleRaw);
+        topics[key].texts.push(descRaw);
+        topics[key].links.push(link);
+      }
+    }
+
+    for (const key in topics) {
+      const topic = topics[key];
+      if (topic.links.length < 2) continue; // nur Themen aus mehreren Quellen
+
+      const title = await translate(topic.titles[0]);
+      const summary = await translate(mergeSummaries(topic.texts));
+
+      const div = document.createElement("div");
+      div.className = "topic";
+      div.innerHTML = `
+        <h2>${title}</h2>
+        <p>${summary}</p>
+        <div class="sources">
+          Quellen:
+          ${topic.links.map(l => `<a href="${l}" target="_blank">Link</a>`).join('')}
+        </div>
+      `;
+      newsEl.appendChild(div);
+    }
+  }
+
+  loadNews();
+</script>
+
+</body>
+</html>
