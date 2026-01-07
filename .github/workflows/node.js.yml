@@ -1,0 +1,39 @@
+name: Weltnachrichten Update
+
+# Trigger: jede Stunde + manuell möglich
+on:
+  schedule:
+    - cron: '0 * * * *'   # jede volle Stunde
+  workflow_dispatch:       # manuelles Auslösen möglich
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Repo auschecken
+      - name: Repository auschecken
+        uses: actions/checkout@v3
+
+      # 2. Node.js installieren
+      - name: Node.js einrichten
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      # 3. Abhängigkeiten installieren
+      - name: NPM installieren
+        run: npm install
+
+      # 4. Script ausführen
+      - name: Nachrichten generieren
+        run: node generateNews.js
+
+      # 5. Änderungen committen und pushen
+      - name: Änderungen pushen
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Automatische Aktualisierung der Nachrichten [ci skip]" || echo "Keine Änderungen"
+          git push
