@@ -27,15 +27,30 @@ main { padding:16px; max-width:900px; margin:auto; }
 <main id="news"></main>
 <script>
 const feeds = {
-  "Alle": [
-    "https://feeds.bbci.co.uk/news/world/rss.xml",
-    "https://www.tagesschau.de/ausland/index~rss2.xml",
-    "https://rss.cnn.com/rss/edition_world.rss"
+  "Progressiv/Links": [
+    "https://www.theguardian.com/world/rss",
+    "https://www.huffpost.com/section/world-news/feed",
+    "https://www.vox.com/rss/index.xml",
+    "https://www.thenation.com/feed/",
+    "https://www.democracynow.org/dn.xml",
+    "https://www.jacobin.com/feed",
+    "https://www.commondreams.org/rss",
+    "https://truthout.org/feed/",
+    "https://www.monde-diplomatique.fr/feed",
+    "https://www.counterpunch.org/feed/"
   ],
-  "Politik": ["https://feeds.bbci.co.uk/news/politics/rss.xml"],
-  "Wirtschaft": ["https://feeds.bbci.co.uk/news/business/rss.xml"],
-  "Technologie": ["https://feeds.bbci.co.uk/news/technology/rss.xml"],
-  "Klima": ["https://feeds.bbci.co.uk/news/science_and_environment/rss.xml"]
+  "Neutral/Zentristisch": [
+    "https://www.reuters.com/rssFeed/world",
+    "https://apnews.com/apf-topnews/rss",
+    "https://feeds.bbci.co.uk/news/rss.xml",
+    "https://www.dw.com/zh/top-stories/s-9097?format=rss",
+    "https://www.npr.org/rss/rss.php?id=1001",
+    "https://www.aljazeera.com/xml/rss/all.xml",
+    "https://www.ft.com/?format=rss",
+    "https://www.bloomberg.com/feed/podcast",
+    "https://www.afp.com/en/rss",
+    "https://www.csmonitor.com/feeds/topstories.xml"
+  ]
 };
 const newsEl = document.getElementById("news");
 const catEl = document.getElementById("categories");
@@ -52,28 +67,17 @@ function createCategories() {
     catEl.appendChild(btn);
   });
 }
-async function translate(text){
-  try{
-    const r = await fetch("https://libretranslate.de/translate",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({q:text, source:"auto", target:"de"})
-    });
-    const d = await r.json();
-    return d.translatedText||text;
-  }catch{return text;}
-}
 function normalizeTitle(title){
   return title.toLowerCase().replace(/[^a-z0-9 ]/gi,'').split(' ').slice(0,6).join(' ');
 }
 function mergeSummaries(texts){
   const joined = texts.join(' ');
-  const sentences = joined.split('. ').filter(s=>s.length>40);
-  let result = sentences.slice(0,4).join('. ') + '.';
-  if(result.length<100) result = joined.slice(0,120)+'…';
+  let result = joined.split('. ').slice(0,6).join('. ') + '.';
+  if(result.length < 200) result = joined.slice(0,200) + '…';
+  if(result.length > 300) result = result.slice(0,300) + '…';
   return result;
 }
-async function loadNews(category="Alle"){
+async function loadNews(category="Progressiv/Links"){
   newsEl.innerHTML="";
   const topics={};
   for(const feed of feeds[category]){
@@ -95,8 +99,8 @@ async function loadNews(category="Alle"){
   }
   for(const key in topics){
     const topic = topics[key];
-    const title = await translate(topic.titles[0]);
-    const summary = await translate(mergeSummaries(topic.texts));
+    const title = topic.titles[0];
+    const summary = mergeSummaries(topic.texts);
     const div=document.createElement("div");
     div.className="topic";
     div.innerHTML=`
@@ -112,8 +116,7 @@ async function loadNews(category="Alle"){
 }
 createCategories();
 loadNews();
-setInterval(()=>loadNews(document.querySelector('.cat.active')?.textContent||'Alle'),5*60*1000);
+setInterval(()=>loadNews(document.querySelector('.cat.active')?.textContent||'Progressiv/Links'),5*60*1000);
 </script>
 </body>
 </html>
-
