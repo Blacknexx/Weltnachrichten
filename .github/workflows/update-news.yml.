@@ -1,0 +1,32 @@
+name: Update Nachrichten
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # jede Stunde
+  workflow_dispatch:      # erlaubt manuelles Auslösen
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v3
+
+      - name: Node.js installieren
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Abhängigkeiten installieren
+        run: npm install
+
+      - name: Nachrichten generieren
+        run: node generateNews.js
+
+      - name: Änderungen committen und pushen
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Automatische Aktualisierung der Nachrichten [ci skip]" || echo "Keine Änderungen"
+          git push
