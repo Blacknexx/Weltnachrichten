@@ -110,18 +110,16 @@ async function translate(text){
   }
 }
 
-// KI-Zusammenfassung (mehrere Quellen pro Thema)
 async function generateKISummary(texts){
-  // Für Demo: einfache Zusammenfassung (mittels Merge)
   const merged = texts.join(' ');
   const sentences = merged.split('. ').filter(s => s.length>40).slice(0,6).join('. ');
   return await translate(sentences.length ? sentences : merged.slice(0,250)+'…');
 }
 
-// Lade Nachrichten
 async function loadNews(category="Alle"){
   newsEl.innerHTML="";
   const topics = {};
+  const today = new Date().toDateString();
 
   for(const feed of feeds[category]){
     try{
@@ -133,14 +131,17 @@ async function loadNews(category="Alle"){
         const titleRaw = item.querySelector("title")?.textContent || "";
         const descRaw = item.querySelector("description")?.textContent?.replace(/<[^>]+>/g,'') || "";
         const link = item.querySelector("link")?.textContent || "";
-        const pubDate = item.querySelector("pubDate")?.textContent || "";
+        const pubDateRaw = item.querySelector("pubDate")?.textContent || "";
+        const pubDate = pubDateRaw ? new Date(pubDateRaw) : null;
+
+        if(!pubDate || pubDate.toDateString() !== today) continue; // nur heute
 
         const key = normalizeTitle(titleRaw);
         if(!topics[key]) topics[key] = {titles:[], texts:[], links:[], dates:[]};
         topics[key].titles.push(titleRaw);
         topics[key].texts.push(descRaw);
         topics[key].links.push(link);
-        topics[key].dates.push(pubDate);
+        topics[key].dates.push(pubDateRaw);
       }
     }catch(e){
       console.log("Feed Fehler:", feed, e);
@@ -151,16 +152,23 @@ async function loadNews(category="Alle"){
     const topic = topics[key];
     const titleTranslated = await translate(topic.titles[0]);
     const summaryTranslated = await translate(mergeSummaries(topic.texts));
-    const kiSummary = await generateKISummary(topic.texts);
     const date = topic.dates[0] ? new Date(topic.dates[0]).toLocaleDateString('de-DE') : "";
 
     const div = document.createElement("div");
     div.className = "topic";
+
+    // KI-Zusammenfassung nur, wenn mehrere Quellen
+    let kiHtml = '';
+    if(topic.links.length > 1){
+      const kiSummary = await generateKISummary(topic.texts);
+      kiHtml = `<div class="ki-summary">KI-Zusammenfassung: ${kiSummary}</div>`;
+    }
+
     div.innerHTML = `
       <div class="date">${date}</div>
       <h2>${titleTranslated}</h2>
       <p>${summaryTranslated}</p>
-      <div class="ki-summary">KI-Zusammenfassung: ${kiSummary}</div>
+      ${kiHtml}
       <div class="sources">
         Quellen:
         ${topic.links.map(l => `<a href="${l}" target="_blank">${l}</a>`).join('')}
@@ -176,4 +184,3 @@ setInterval(() => loadNews(document.querySelector('.cat.active')?.textContent ||
 </script>
 </body>
 </html>
-
