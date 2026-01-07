@@ -16,7 +16,7 @@ main { padding:16px; max-width:900px; margin:auto; }
 .topic h2 { margin:0 0 6px; font-size:16px; color:#f9fafb; }
 .topic p { font-size:14px; line-height:1.6; color:#d1d5db; }
 .ki-summary { background:#1e40af; color:#f0fdf4; padding:12px; border-radius:12px; margin-top:8px; font-size:14px; line-height:1.5; }
-.summary-all { background:#047857; color:#f0fdf4; padding:14px; border-radius:12px; margin-top:12px; font-size:15px; line-height:1.5; }
+.summary-all { background:#047857; color:#f0fdf4; padding:14px; border-radius:12px; margin-top:12px; font-size:15px; line-height:1.5; white-space:pre-line; }
 .sources { margin-top:12px; font-size:12px; }
 .sources a { color:#38bdf8; text-decoration:none; display:block; margin-bottom:2px; }
 .date { font-size:12px; color:#9ca3af; margin-bottom:4px; }
@@ -32,7 +32,6 @@ main { padding:16px; max-width:900px; margin:auto; }
 // RSS-Feeds inkl. deutscher Quellen
 const feeds = {
   "Alle": [
-    // internationale Quellen
     "https://feeds.bbci.co.uk/news/rss.xml",
     "https://www.reuters.com/rssFeed/world",
     "https://apnews.com/apf-topnews/rss",
@@ -41,7 +40,6 @@ const feeds = {
     "https://www.theguardian.com/world/rss",
     "https://www.vox.com/rss/index.xml",
     "https://www.huffpost.com/section/world-news/feed",
-    // deutsche Quellen
     "https://www.spiegel.de/schlagzeilen/tops/index.rss",
     "https://www.sueddeutsche.de/news/rss/uebersicht",
     "https://www.faz.net/rss/aktuell/",
@@ -143,10 +141,12 @@ async function translate(text){
   }
 }
 
-async function generateKISummary(texts){
+async function generateKISummary(texts, maxLength=4000){
   const merged = texts.join(' ');
-  const sentences = merged.split('. ').filter(s => s.length>40).slice(0,20).join('. '); // max 20 Sätze
-  return await translate(sentences.length ? sentences : merged.slice(0,2000)+'…');
+  const sentences = merged.split('. ').filter(s => s.length>40).join('. ');
+  let trimmed = sentences.slice(0, maxLength);
+  if(trimmed.length < sentences.length) trimmed += '…';
+  return await translate(trimmed);
 }
 
 // Tagesaktuelle Nachrichten laden
@@ -192,7 +192,7 @@ async function loadNews(category="Alle"){
     div.className = "topic";
     let kiHtml = '';
     if(topic.links.length > 1){
-      const kiSummary = await generateKISummary(topic.texts);
+      const kiSummary = await generateKISummary(topic.texts,300);
       kiHtml = `<div class="ki-summary">KI-Zusammenfassung: ${kiSummary}</div>`;
     }
 
@@ -214,9 +214,10 @@ async function loadNews(category="Alle"){
 async function loadSummaryAll(){
   newsEl.innerHTML="<p>Lädt Tageszusammenfassung…</p>";
   const today = new Date().toDateString();
-  let allTexts = [];
+  let categoryTexts = {};
 
   for(const category in feeds){
+    categoryTexts[category] = [];
     for(const feed of feeds[category]){
       try{
         const res = await fetch("https://api.allorigins.win/raw?url=" + encodeURIComponent(feed));
@@ -229,7 +230,7 @@ async function loadSummaryAll(){
           if(!pubDate || pubDate.toDateString() !== today) continue;
 
           const descRaw = item.querySelector("description")?.textContent?.replace(/<[^>]+>/g,'') || "";
-          allTexts.push(descRaw);
+          categoryTexts[category].push(descRaw);
         }
       }catch(e){
         console.log("Feed Fehler:", feed, e);
@@ -237,23 +238,30 @@ async function loadSummaryAll(){
     }
   }
 
-  if(allTexts.length===0){
-    newsEl.innerHTML="<p>Keine tagesaktuellen Nachrichten gefunden.</p>";
-    return;
+  // Gliederung + Zusammenfassung
+  let finalText = '';
+  for(const cat in categoryTexts){
+    if(categoryTexts[cat].length>0){
+      finalText += `== ${cat} ==\n`;
+      const mergedText = categoryTexts[cat].slice(0,50).join('. ');
+      const summaryCat = await generateKISummary([mergedText],1000); // max 1000 Zeichen pro Kategorie
+      finalText += summaryCat + '\n\n';
+    }
   }
 
-  const summaryText = await generateKISummary(allTexts.slice(0,50)); // max 50 Artikel
-  newsEl.innerHTML = `<div class="summary-all">${summaryText}</div>`;
+  // Gesamtlänge auf 4000 Zeichen begrenzen
+  if(finalText.length>4000) finalText = finalText.slice(0,4000) + '…';
+  newsEl.innerHTML = `<div class="summary-all">${finalText}</div>`;
 }
 
 // Initial laden + Auto-Refresh
 loadNews();
-setInterval(() => loadNews(document.querySelector('.cat.active')?.textContent || 'Alle'), 5*60*1000); // alle 5 Min
+setInterval(() => loadNews(document.querySelector('.cat.active')?.textContent || 'Alle'), 5*60*1000);
 setInterval(() => {
   if(document.querySelector('.cat.active')?.textContent==="Tageszusammenfassung"){
     loadSummaryAll();
   }
-}, 12*60*60*1000); // alle 12 Stunden
+}, 12*60*60*1000);
 </script>
 </body>
 </html>
