@@ -16,6 +16,7 @@ main { padding:16px; max-width:900px; margin:auto; }
 .topic h2 { margin:0 0 6px; font-size:16px; color:#f9fafb; }
 .topic p { font-size:14px; line-height:1.6; color:#d1d5db; }
 .ki-summary { background:#1e40af; color:#f0fdf4; padding:12px; border-radius:12px; margin-top:8px; font-size:14px; line-height:1.5; }
+.summary-all { background:#047857; color:#f0fdf4; padding:14px; border-radius:12px; margin-top:12px; font-size:15px; line-height:1.5; }
 .sources { margin-top:12px; font-size:12px; }
 .sources a { color:#38bdf8; text-decoration:none; display:block; margin-bottom:2px; }
 .date { font-size:12px; color:#9ca3af; margin-bottom:4px; }
@@ -28,48 +29,76 @@ main { padding:16px; max-width:900px; margin:auto; }
 </header>
 <main id="news"></main>
 <script>
-// RSS-Feeds pro Kategorie
+// RSS-Feeds inkl. deutscher Quellen
 const feeds = {
   "Alle": [
+    // internationale Quellen
     "https://feeds.bbci.co.uk/news/rss.xml",
     "https://www.reuters.com/rssFeed/world",
-    "https://www.dw.com/zh/top-stories/s-9097?format=rss",
     "https://apnews.com/apf-topnews/rss",
     "https://www.ft.com/?format=rss",
     "https://www.bloomberg.com/feed/podcast",
     "https://www.theguardian.com/world/rss",
     "https://www.vox.com/rss/index.xml",
-    "https://www.huffpost.com/section/world-news/feed"
+    "https://www.huffpost.com/section/world-news/feed",
+    // deutsche Quellen
+    "https://www.spiegel.de/schlagzeilen/tops/index.rss",
+    "https://www.sueddeutsche.de/news/rss/uebersicht",
+    "https://www.faz.net/rss/aktuell/",
+    "https://www.tagesschau.de/xml/rss2/",
+    "https://www.zdf.de/nachrichten/heute-nachrichten",
+    "https://www.n-tv.de/rss",
+    "https://www.t-online.de/rss",
+    "https://www.handelsblatt.com/contentexport/rss",
+    "https://taz.de/rss",
+    "https://www.neues-deutschland.de/rss.xml"
   ],
   "Politik": [
     "https://feeds.bbci.co.uk/news/politics/rss.xml",
     "https://www.theguardian.com/politics/rss",
     "https://www.vox.com/policy-and-politics/rss/index.xml",
-    "https://www.huffpost.com/section/politics/feed"
+    "https://www.huffpost.com/section/politics/feed",
+    "https://www.spiegel.de/politik/index.rss",
+    "https://www.sueddeutsche.de/politik/rss",
+    "https://www.faz.net/rss/politik/",
+    "https://www.tagesschau.de/xml/rss2/",
+    "https://www.zdf.de/nachrichten/politik",
+    "https://taz.de/rss"
   ],
   "Wirtschaft": [
     "https://www.ft.com/?format=rss",
     "https://www.bloomberg.com/feed/podcast",
     "https://www.reuters.com/rssFeed/business",
-    "https://apnews.com/apf-business/rss"
+    "https://apnews.com/apf-business/rss",
+    "https://www.spiegel.de/wirtschaft/index.rss",
+    "https://www.sueddeutsche.de/wirtschaft/rss",
+    "https://www.faz.net/rss/wirtschaft/",
+    "https://www.handelsblatt.com/contentexport/rss",
+    "https://www.n-tv.de/wirtschaft/rss"
   ],
   "Technologie": [
     "https://www.theguardian.com/technology/rss",
     "https://www.vox.com/technology/rss/index.xml",
-    "https://www.huffpost.com/section/technology/feed"
+    "https://www.huffpost.com/section/technology/feed",
+    "https://www.spiegel.de/netzwelt/index.rss",
+    "https://www.sueddeutsche.de/digital/rss",
+    "https://www.faz.net/rss/technik/"
   ],
   "Klima": [
     "https://www.theguardian.com/environment/rss",
     "https://www.vox.com/energy-and-environment/rss/index.xml",
-    "https://www.commondreams.org/rss/environment"
+    "https://www.commondreams.org/rss/environment",
+    "https://www.spiegel.de/wissenschaft/umwelt/index.rss",
+    "https://www.sueddeutsche.de/umwelt/rss",
+    "https://www.faz.net/rss/umwelt/"
   ]
 };
 
 const newsEl = document.getElementById("news");
 const catEl = document.getElementById("categories");
 
-// Kategorien-Buttons hart codiert
-const categoryNames = Object.keys(feeds);
+// Kategorien + Tageszusammenfassung
+const categoryNames = [...Object.keys(feeds), "Tageszusammenfassung"];
 categoryNames.forEach((cat, i) => {
   const btn = document.createElement("div");
   btn.className = "cat" + (i===0 ? " active" : "");
@@ -77,7 +106,11 @@ categoryNames.forEach((cat, i) => {
   btn.onclick = () => {
     document.querySelectorAll('.cat').forEach(c => c.classList.remove('active'));
     btn.classList.add('active');
-    loadNews(cat);
+    if(cat==="Tageszusammenfassung"){
+      loadSummaryAll();
+    } else {
+      loadNews(cat);
+    }
   };
   catEl.appendChild(btn);
 });
@@ -112,10 +145,11 @@ async function translate(text){
 
 async function generateKISummary(texts){
   const merged = texts.join(' ');
-  const sentences = merged.split('. ').filter(s => s.length>40).slice(0,6).join('. ');
-  return await translate(sentences.length ? sentences : merged.slice(0,250)+'…');
+  const sentences = merged.split('. ').filter(s => s.length>40).slice(0,20).join('. '); // max 20 Sätze
+  return await translate(sentences.length ? sentences : merged.slice(0,2000)+'…');
 }
 
+// Tagesaktuelle Nachrichten laden
 async function loadNews(category="Alle"){
   newsEl.innerHTML="";
   const topics = {};
@@ -134,7 +168,7 @@ async function loadNews(category="Alle"){
         const pubDateRaw = item.querySelector("pubDate")?.textContent || "";
         const pubDate = pubDateRaw ? new Date(pubDateRaw) : null;
 
-        if(!pubDate || pubDate.toDateString() !== today) continue; // nur heute
+        if(!pubDate || pubDate.toDateString() !== today) continue;
 
         const key = normalizeTitle(titleRaw);
         if(!topics[key]) topics[key] = {titles:[], texts:[], links:[], dates:[]};
@@ -156,8 +190,6 @@ async function loadNews(category="Alle"){
 
     const div = document.createElement("div");
     div.className = "topic";
-
-    // KI-Zusammenfassung nur, wenn mehrere Quellen
     let kiHtml = '';
     if(topic.links.length > 1){
       const kiSummary = await generateKISummary(topic.texts);
@@ -178,9 +210,50 @@ async function loadNews(category="Alle"){
   }
 }
 
-// Initial laden + Auto-Refresh alle 5 Minuten
+// Tageszusammenfassung für alle Nachrichten
+async function loadSummaryAll(){
+  newsEl.innerHTML="<p>Lädt Tageszusammenfassung…</p>";
+  const today = new Date().toDateString();
+  let allTexts = [];
+
+  for(const category in feeds){
+    for(const feed of feeds[category]){
+      try{
+        const res = await fetch("https://api.allorigins.win/raw?url=" + encodeURIComponent(feed));
+        const xml = new DOMParser().parseFromString(await res.text(),"text/xml");
+        const items = Array.from(xml.querySelectorAll("item")).slice(0,8);
+
+        for(const item of items){
+          const pubDateRaw = item.querySelector("pubDate")?.textContent || "";
+          const pubDate = pubDateRaw ? new Date(pubDateRaw) : null;
+          if(!pubDate || pubDate.toDateString() !== today) continue;
+
+          const descRaw = item.querySelector("description")?.textContent?.replace(/<[^>]+>/g,'') || "";
+          allTexts.push(descRaw);
+        }
+      }catch(e){
+        console.log("Feed Fehler:", feed, e);
+      }
+    }
+  }
+
+  if(allTexts.length===0){
+    newsEl.innerHTML="<p>Keine tagesaktuellen Nachrichten gefunden.</p>";
+    return;
+  }
+
+  const summaryText = await generateKISummary(allTexts.slice(0,50)); // max 50 Artikel
+  newsEl.innerHTML = `<div class="summary-all">${summaryText}</div>`;
+}
+
+// Initial laden + Auto-Refresh
 loadNews();
-setInterval(() => loadNews(document.querySelector('.cat.active')?.textContent || 'Alle'), 5*60*1000);
+setInterval(() => loadNews(document.querySelector('.cat.active')?.textContent || 'Alle'), 5*60*1000); // alle 5 Min
+setInterval(() => {
+  if(document.querySelector('.cat.active')?.textContent==="Tageszusammenfassung"){
+    loadSummaryAll();
+  }
+}, 12*60*60*1000); // alle 12 Stunden
 </script>
 </body>
 </html>
