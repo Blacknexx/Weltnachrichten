@@ -26,41 +26,30 @@ main { padding:16px; max-width:900px; margin:auto; }
 </header>
 <main id="news"></main>
 <script>
+// RSS-Feeds pro Kategorie
 const feeds = {
   "Alle": [
-    "https://www.theguardian.com/world/rss",
-    "https://www.huffpost.com/section/world-news/feed",
-    "https://www.vox.com/rss/index.xml",
-    "https://www.thenation.com/feed/",
-    "https://www.democracynow.org/dn.xml",
-    "https://www.jacobin.com/feed",
-    "https://www.commondreams.org/rss",
-    "https://truthout.org/feed/",
-    "https://www.monde-diplomatique.fr/feed",
-    "https://www.counterpunch.org/feed/",
-    "https://www.reuters.com/rssFeed/world",
-    "https://apnews.com/apf-topnews/rss",
     "https://feeds.bbci.co.uk/news/rss.xml",
+    "https://www.reuters.com/rssFeed/world",
     "https://www.dw.com/zh/top-stories/s-9097?format=rss",
-    "https://www.npr.org/rss/rss.php?id=1001",
-    "https://www.aljazeera.com/xml/rss/all.xml",
+    "https://apnews.com/apf-topnews/rss",
     "https://www.ft.com/?format=rss",
     "https://www.bloomberg.com/feed/podcast",
-    "https://www.afp.com/en/rss",
-    "https://www.csmonitor.com/feeds/topstories.xml"
+    "https://www.theguardian.com/world/rss",
+    "https://www.vox.com/rss/index.xml",
+    "https://www.huffpost.com/section/world-news/feed"
   ],
   "Politik": [
+    "https://feeds.bbci.co.uk/news/politics/rss.xml",
     "https://www.theguardian.com/politics/rss",
-    "https://www.huffpost.com/section/politics/feed",
     "https://www.vox.com/policy-and-politics/rss/index.xml",
-    "https://www.thenation.com/politics/feed",
-    "https://www.democracynow.org/dn.xml"
+    "https://www.huffpost.com/section/politics/feed"
   ],
   "Wirtschaft": [
     "https://www.ft.com/?format=rss",
     "https://www.bloomberg.com/feed/podcast",
     "https://www.reuters.com/rssFeed/business",
-    "https://www.apnews.com/apf-business/rss"
+    "https://apnews.com/apf-business/rss"
   ],
   "Technologie": [
     "https://www.theguardian.com/technology/rss",
@@ -73,21 +62,25 @@ const feeds = {
     "https://www.commondreams.org/rss/environment"
   ]
 };
+
 const newsEl = document.getElementById("news");
 const catEl = document.getElementById("categories");
-function createCategories() {
-  Object.keys(feeds).forEach((cat,i)=>{
-    const btn=document.createElement("div");
-    btn.className="cat"+(i===0?" active":"");
-    btn.textContent=cat;
-    btn.onclick=()=>{
-      document.querySelectorAll('.cat').forEach(c=>c.classList.remove('active'));
-      btn.classList.add('active');
-      loadNews(cat);
-    };
-    catEl.appendChild(btn);
-  });
-}
+
+// Kategorien-Buttons hart codiert, immer sichtbar
+const categoryNames = Object.keys(feeds);
+categoryNames.forEach((cat, i) => {
+  const btn = document.createElement("div");
+  btn.className = "cat" + (i===0 ? " active" : "");
+  btn.textContent = cat;
+  btn.onclick = () => {
+    document.querySelectorAll('.cat').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    loadNews(cat);
+  };
+  catEl.appendChild(btn);
+});
+
+// Hilfsfunktionen
 function normalizeTitle(title){
   return title.toLowerCase().replace(/[^a-z0-9 ]/gi,'').split(' ').slice(0,6).join(' ');
 }
@@ -98,38 +91,55 @@ function mergeSummaries(texts){
   if(result.length > 300) result = result.slice(0,300) + '…';
   return result;
 }
+
 async function loadNews(category="Alle"){
   newsEl.innerHTML="";
-  const topics={};
+  const topics = {};
+
   for(const feed of feeds[category]){
     try{
       const res = await fetch("https://api.allorigins.win/raw?url=" + encodeURIComponent(feed));
       const xml = new DOMParser().parseFromString(await res.text(),"text/xml");
       const items = Array.from(xml.querySelectorAll("item")).slice(0,8);
+
       for(const item of items){
-        const titleRaw = item.querySelector("title")?.textContent||"";
-        const descRaw = item.querySelector("description")?.textContent?.replace(/<[^>]+>/g,'')||"";
-        const link = item.querySelector("link")?.textContent||"";
+        const titleRaw = item.querySelector("title")?.textContent || "";
+        const descRaw = item.querySelector("description")?.textContent?.replace(/<[^>]+>/g,'') || "";
+        const link = item.querySelector("link")?.textContent || "";
         const key = normalizeTitle(titleRaw);
-        if(!topics[key]) topics[key]={titles:[],texts:[],links:[]};
+        if(!topics[key]) topics[key] = {titles:[], texts:[], links:[]};
         topics[key].titles.push(titleRaw);
         topics[key].texts.push(descRaw);
         topics[key].links.push(link);
       }
-    }catch(e){console.log("Feed Fehler:",feed,e);}
+    } catch(e){
+      console.log("Feed Fehler:", feed, e);
+    }
   }
+
   for(const key in topics){
     const topic = topics[key];
     const title = topic.titles[0];
     const summary = mergeSummaries(topic.texts);
-    const div=document.createElement("div");
-    div.className="topic";
-    div.innerHTML=`
+
+    const div = document.createElement("div");
+    div.className = "topic";
+    div.innerHTML = `
       <h2>${title}</h2>
       <p>${summary}</p>
       <div class="sources">
         Quellen:
-        ${topic.links.map(l=>`<a href="${l}" target="_blank">${l}</a>`).join('')}
+        ${topic.links.map(l => `<a href="${l}" target="_blank">${l}</a>`).join('')}
       </div>
     `;
-    newsEl.appendChild
+    newsEl.appendChild(div);
+  }
+}
+
+// Initial laden + Auto-Refresh alle 5 Minuten
+loadNews();
+setInterval(() => loadNews(document.querySelector('.cat.active')?.textContent || 'Alle'), 5*60*1000);
+</script>
+</body>
+</html>
+
