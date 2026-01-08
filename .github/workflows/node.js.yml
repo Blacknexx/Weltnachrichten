@@ -1,1 +1,29 @@
-Datei löschen
+{
+  "updated": "Heute 12:00",
+  "categories": {
+    "Politik": [
+      {
+        "title": "Test: Politische Nachricht",
+        "date": "Heute",
+        "summary": "Dies ist eine Test-Zusammenfassung. Wenn du diesen Text siehst, funktioniert Version 2 korrekt.",
+        "multiSource": true,
+        "sources": [
+          "https://www.reuters.com",
+          "https://www.spiegel.de"
+        ]
+      }
+    ],
+    "Wirtschaft": [
+      {
+        "title": "Test: Wirtschaftsnachricht",
+        "date": "Heute",
+        "summary": "Auch diese Nachricht dient nur zum Testen der Anzeige.",
+        "multiSource": false,
+        "sources": [
+          "https://www.handelsblatt.com"
+        ]
+      }
+    ]
+  }
+}
+
